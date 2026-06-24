@@ -12,6 +12,14 @@ This repository contains a reproducible Snakemake workflow for downloading, proc
 
 The workflow is designed to be reproducible through Snakemake and Conda environments.
 
+## Data
+
+LUAD molecular subtype annotations were obtained from:
+The Cancer Genome Atlas Research Network. [Comprehensive molecular profiling of lung adenocarcinoma.](doi.org/10.1038/nature13385) Nature. 2014. doi:10.1038/nature13385
+
+COAD molecular subtype annotations were obtained from:
+The Cancer Genome Atlas Network. [Comprehensive molecular characterization of human colon and rectal cancer.](doi.org/10.1038/nature11252) Nature. 2012. doi:10.1038/nature11252
+
 ---
 
 ## Workflow
@@ -248,7 +256,3 @@ If you use this workflow, please cite:
 - Colaprico et al. TCGAbiolinks.
 - Wu et al. clusterProfiler.
 - The Cancer Genome Atlas (TCGA).
-
-```
-
-```
