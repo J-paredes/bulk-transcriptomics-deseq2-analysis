@@ -1,0 +1,13 @@
+﻿.snakemake/
+*.Rhistory
+*.RData
+*.tsv
+*.pdf
+*.rds
+*.bioc_installed
+*.sqlite
+
+
+/data/raw/GDCdata/*
+/.snakemake/*
+/data/raw/tcga_counts.csv

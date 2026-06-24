@@ -1,0 +1,10 @@
+projects:
+  - TCGA-LUAD
+  - TCGA-COAD
+
+design: "~ cancer_type"
+
+filters:
+  min_counts: 10
+
+threads: 4

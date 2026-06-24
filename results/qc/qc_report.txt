@@ -1,0 +1,8 @@
+=== QC REPORT ===
+Samples: 1125
+Genes: 60660
+Matched samples: 1125
+Age column FOUND: age_at_diagnosis
+WARNING: multimapped_reads not found
+Batch column FOUND
+Batch source: 

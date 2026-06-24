@@ -1,0 +1,135 @@
+configfile: "workflow/env/config.yaml"
+
+PROJECTS = config["projects"]
+
+import os
+
+for data_dir in ["data/raw", "data/metadata"]:
+    os.makedirs(data_dir, exist_ok=True)
+
+for result_dir in [
+    "results",
+    "results/qc",
+    "results/des",
+    "results/enrichment",
+    "results/figures",
+]:
+    os.makedirs(result_dir, exist_ok=True)
+
+rule setup_bioc:
+    conda:
+        "env/r.yaml"
+    output:
+        ".bioc_installed"
+    script:
+        "../scripts/setup_bioc.R"
+
+rule all:
+    input:
+        ".bioc_installed",
+        "data/raw/tcga_counts.rds",
+        "data/metadata/tcga_metadata.rds",
+        "results/qc/qc_deseq2_dds.rds",
+        "results/qc/qc_report.txt",
+        "results/qc/pca_prelim.png",
+        "results/qc/pc1_total_reads.png",
+        "results/qc/pc1_multimapped.png",
+        "results/des/deseq2_results.csv",
+        "results/des/normalized_counts.csv",
+        "results/des/deseq2_dds.rds",
+        "results/enrichment/go_enrichment.png",
+        "results/enrichment/KEGG_enrichment.png",
+        "results/enrichment/go_results.csv",
+        "results/enrichment/kegg_results.csv",
+        "results/figures/pca.png",
+        "results/figures/volcano.png",
+        "results/figures/heatmap.png"
+
+
+# -----------------------------
+# 1. Download TCGA data
+# -----------------------------
+rule download_tcga:
+    output:
+        "data/raw/tcga_counts.rds",
+        "data/metadata/tcga_metadata.rds",
+        "data/raw/tcga_counts.csv",
+        "data/metadata/tcga_metadata.csv"
+    conda:
+        "env/r.yaml"
+    script:
+        "../scripts/download_tcga.R"
+
+
+# -----------------------------
+# 2. QC
+# -----------------------------
+rule qc:
+    input:
+        counts="data/raw/tcga_counts.rds",
+        meta="data/metadata/tcga_metadata.rds",
+        bioc=".bioc_installed"
+    output:
+        "results/qc/qc_deseq2_dds.rds",
+        "results/qc/qc_report.txt",
+        "results/qc/pca_prelim.png",
+        "results/qc/pc1_total_reads.png",
+        "results/qc/pc1_multimapped.png"
+    conda:
+        "env/r.yaml"
+    script:
+        "../scripts/qc.R"
+
+
+# -----------------------------
+# 3. Differential Expression
+# -----------------------------
+rule deseq2:
+    input:
+        counts="data/raw/tcga_counts.rds",
+        meta="data/metadata/tcga_metadata.rds",
+        bioc=".bioc_installed"
+    output:
+        results="results/des/deseq2_results.csv",
+        normalized="results/des/normalized_counts.csv",
+        dds="results/des/deseq2_dds.rds"
+    conda:
+        "env/r.yaml"
+    script:
+        "../scripts/deseq2.R"
+
+
+# -----------------------------
+# 4. Enrichment analysis
+# -----------------------------
+rule enrichment:
+    input:
+        "results/des/deseq2_results.csv",
+        bioc=".bioc_installed"
+    output:
+        "results/enrichment/go_enrichment.png",
+        "results/enrichment/KEGG_enrichment.png",
+        "results/enrichment/go_results.csv",
+        "results/enrichment/kegg_results.csv",
+    conda:
+        "env/r.yaml"
+    script:
+        "../scripts/enrichment.R"
+
+
+# -----------------------------
+# 5. Figures
+# -----------------------------
+rule plots:
+    input:
+        deg="results/des/deseq2_results.csv",
+        dds="results/des/deseq2_dds.rds",
+        bioc=".bioc_installed"
+    output:
+        "results/figures/pca.png",
+        "results/figures/volcano.png",
+        "results/figures/heatmap.png"
+    conda:
+        "env/r.yaml"
+    script:
+        "../scripts/plots.R"
