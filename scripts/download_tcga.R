@@ -1,28 +1,11 @@
 options(repos = c(CRAN = "https://cloud.r-project.org"))
 
+library(readr)
 dir.create("data", recursive = TRUE, showWarnings = FALSE)
 
-ensure_bioc_package <- function(pkg) {
-  if (!requireNamespace(pkg, quietly = TRUE)) {
-    if (!requireNamespace("BiocManager", quietly = TRUE)) {
-      install.packages("BiocManager")
-    }
+library(TCGAbiolinks)
+library(SummarizedExperiment)
 
-    BiocManager::install(pkg, ask = FALSE, update = FALSE)
-
-    if (!requireNamespace(pkg, quietly = TRUE)) {
-      stop(sprintf("Failed to install required package: %s", pkg))
-    }
-  }
-}
-
-ensure_bioc_package("TCGAbiolinks")
-ensure_bioc_package("SummarizedExperiment")
-
-suppressPackageStartupMessages({
-  library(TCGAbiolinks)
-  library(SummarizedExperiment)
-})
 
 with_retry <- function(expr_fun, label, max_attempts = 6, initial_wait = 10) {
   last_err <- NULL
@@ -99,31 +82,77 @@ extract_batch <- function(meta) {
   meta
 }
 
-out_dir <- "data/raw"
-gdc_dir <- file.path(out_dir, "GDCdata")
+dir.create("data/raw", recursive = TRUE, showWarnings = FALSE)
+dir.create("data/metadata", recursive = TRUE, showWarnings = FALSE)
 
-dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
-dir.create(gdc_dir, recursive = TRUE, showWarnings = FALSE)
+cancers <- c("TCGA-LUAD", "TCGA-COAD")
 
-query <- GDCquery(
-  project = c("TCGA-LUAD", "TCGA-COAD"),
-  data.category = "Transcriptome Profiling",
-  data.type = "Gene Expression Quantification",
-  workflow.type = "STAR - Counts"
-)
+for (cancer in cancers) {
+  cancer_name <- sub("TCGA-", "", cancer)
 
-with_retry(
-  function() GDCdownload(query, method = "api", files.per.chunk = 20, directory = gdc_dir),
-  "GDCdownload"
-)
+  out_dir <- file.path("data/raw")
+  gdc_dir <- file.path(out_dir, "GDCdata")
 
-data <- with_retry(
-  function() GDCprepare(query, directory = gdc_dir),
-  "GDCprepare"
-)
+  dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+  dir.create(gdc_dir, recursive = TRUE, showWarnings = FALSE)
 
-available_assays <- SummarizedExperiment::assayNames(data)
+  query <- GDCquery(
+    project = cancer,
+    data.category = "Transcriptome Profiling",
+    data.type = "Gene Expression Quantification",
+    workflow.type = "STAR - Counts"
+  )
 
+  with_retry(
+    function() GDCdownload(query, method = "api", files.per.chunk = 20, directory = gdc_dir),
+    sprintf("GDCdownload for %s", cancer)
+  )
+
+  
+  data <- with_retry(
+    function() GDCprepare(query, directory = gdc_dir),
+    sprintf("GDCprepare for %s", cancer)
+  )
+
+  available_assays <- SummarizedExperiment::assayNames(data)
+
+  assay_to_use <- if ("unstranded" %in% available_assays) {
+    "unstranded"
+  } else {
+    available_assays[[1]]
+  }
+
+  counts <- SummarizedExperiment::assay(data, assay_to_use)
+
+  meta <- as.data.frame(SummarizedExperiment::colData(data))
+  meta <- extract_batch(meta)
+
+  meta$cancer_type <- sub("TCGA-", "", cancer)
+
+  cat(
+      sprintf(
+          "%s: %d genes × %d samples\n",
+          cancer_name,
+          nrow(counts),
+          ncol(counts)
+      )
+  )
+
+  saveRDS(counts, sprintf("data/raw/%s_counts.rds", cancer_name))
+  saveRDS(meta, sprintf("data/metadata/%s_metadata.rds", cancer_name))
+
+  write_csv(
+    as.data.frame(counts, check.names = FALSE),
+    sprintf("data/raw/%s_counts.csv", cancer_name)
+  )
+
+  write_csv(
+    as.data.frame(meta, check.names = FALSE),
+    sprintf("data/metadata/%s_metadata.csv", cancer_name)
+  )
+}
+
+unlink(gdc_dir, recursive = TRUE)
 
 # Available assays in SummarizedExperiment : 
 #   => unstranded
@@ -144,33 +173,5 @@ available_assays <- SummarizedExperiment::assayNames(data)
 ## upper-quartile normalized FPKM values (not raw counts)
 ## not suitable for DESeq2
 
-assay_to_use <- if ("unstranded" %in% available_assays) {
-  "unstranded"
-} else {
-  available_assays[[1]]
-}
 
-counts <- SummarizedExperiment::assay(data, assay_to_use)
 
-meta <- as.data.frame(SummarizedExperiment::colData(data))
-meta <- extract_batch(meta)
-
-meta$cancer_type <- ifelse(meta$project_id == "TCGA-LUAD",
-                           "LUAD", "COAD")
-
-dir.create("data/raw", recursive = TRUE, showWarnings = FALSE)
-dir.create("data/metadata", recursive = TRUE, showWarnings = FALSE)
-
-saveRDS(counts, "data/raw/tcga_counts.rds")
-saveRDS(meta, "data/metadata/tcga_metadata.rds")
-
-library(readr)
-write_csv(
-  as.data.frame(counts, check.names = FALSE),
-  "data/raw/tcga_counts.csv"
-)
-
-write_csv(
-  meta,
-  "data/metadata/tcga_metadata.csv"
-)

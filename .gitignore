@@ -11,3 +11,4 @@
 /data/raw/GDCdata/*
 /.snakemake/*
 /data/raw/tcga_counts.csv
+/results/*

@@ -1,25 +1,28 @@
 name: bulk-rna-seq
+
 channels:
-  - bioconda
   - conda-forge
-  - r
+  - defaults
 
 dependencies:
   - r-base=4.3
-  - r-optparse
   - r-biocmanager
+
+  # General CRAN packages
+  - r-ggplot2
+  - r-dplyr
+  - r-tibble
+  - r-remotes
+  - r-ggrepel
   - r-jsonlite
   - r-httr
   - r-curl
-  - r-matrix
-  - r-xml2>=1.4.0
+  - r-xml2
   - r-rvest
   - r-dbplyr
-  - r-recommended
-  - r-uuid
-  - r-ggplot2
-  - snakemake
-  - r-vroom
-  - r-readr
-  - r-dplyr
-  - r-tibble
+  - r-optparse
+
+  # Common compiled dependencies
+  - r-rcpp
+  - r-cli
+  - r-rlang

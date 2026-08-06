@@ -1,4 +1,11 @@
+cat("LIBPATHS\n")
+print(.libPaths())
 
+cat("R HOME\n")
+print(R.home())
+
+cat("DESeq2\n")
+print(find.package("DESeq2"))
 library(DESeq2)
 
 
@@ -13,7 +20,7 @@ meta <- readRDS(snakemake@input[["meta"]])
 dds <- DESeqDataSetFromMatrix(
   countData = counts,
   colData = meta,
-  design = ~ cancer_type
+  design = ~ sample_type
 )
 
 dds <- DESeq(dds)

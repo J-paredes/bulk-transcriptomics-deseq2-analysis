@@ -6,10 +6,10 @@ library(ggplot2)
 library(readr)
 library(dplyr)
 
-go_plot <- snakemake@output[[1]]
-kegg_plot <- snakemake@output[[2]]
-go_csv <- snakemake@output[[3]]
-kegg_csv <- snakemake@output[[4]]
+go_csv <- snakemake@output[[1]]
+kegg_csv <- snakemake@output[[2]]
+go_plot <- snakemake@output[[3]]
+kegg_plot <- snakemake@output[[4]]
 
 for (output_path in as.character(snakemake@output)) {
   dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)

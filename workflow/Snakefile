@@ -1,60 +1,108 @@
 configfile: "workflow/env/config.yaml"
 
-PROJECTS = config["projects"]
-
 import os
 
-for data_dir in ["data/raw", "data/metadata"]:
-    os.makedirs(data_dir, exist_ok=True)
+CANCERS = config["cancers"]  # ["LUAD", "COAD"]
 
-for result_dir in [
-    "results",
+# -----------------------------
+# DIRECTORY SETUP
+# -----------------------------
+for d in [
+    "data/raw",
+    "data/metadata",
     "results/qc",
     "results/des",
-    "results/enrichment",
-    "results/figures",
+    "results/cross",
+    "results/setup",
+    "results/setup/enrichment"
 ]:
-    os.makedirs(result_dir, exist_ok=True)
+    os.makedirs(d, exist_ok=True)
 
+
+# -----------------------------
+# ALL RULE
+# -----------------------------
+rule all:
+    input:
+        # raw data
+        expand("data/raw/{cancer}_counts.rds", cancer=CANCERS),
+        expand("data/metadata/{cancer}_metadata.rds", cancer=CANCERS),
+
+        # QC
+        expand("results/qc/{cancer}/dds.rds", cancer=CANCERS),
+        expand("results/qc/{cancer}/pca.png", cancer=CANCERS),
+        expand("results/qc/{cancer}/qc_report.txt", cancer=CANCERS),
+        expand("results/qc/{cancer}/sample_distance_heatmap.png", cancer=CANCERS),
+        expand("results/qc/{cancer}/size_factors.png", cancer=CANCERS),
+        expand("results/qc/{cancer}/pc1_total.png", cancer=CANCERS),
+        expand("results/qc/{cancer}/done.txt", cancer=CANCERS),
+        # DE
+        expand("results/des/{cancer}/dds.rds", cancer=CANCERS),
+        expand("results/des/{cancer}/results.csv", cancer=CANCERS),
+        expand("results/des/{cancer}/normalized_counts.csv", cancer=CANCERS),
+        expand("results/des/{cancer}/volcano.png", cancer=CANCERS),
+        expand("results/des/{cancer}/pca.png", cancer=CANCERS),
+        expand("results/des/{cancer}/pca_sample_type.csv", cancer=CANCERS),
+        expand("results/des/{cancer}/heatmap.png", cancer=CANCERS),
+        expand("results/des/{cancer}/ma_plot.png", cancer=CANCERS),
+        
+        expand("results/des/{cancer}/enrichment_go.csv", cancer=CANCERS),
+        expand("results/des/{cancer}/enrichment_kegg.csv", cancer=CANCERS),
+        expand("results/des/{cancer}/enrichment_go_plot.png", cancer=CANCERS),
+        expand("results/des/{cancer}/enrichment_kegg_plot.png", cancer=CANCERS),
+
+        # cross cancer
+        "results/cross/qc_pca_luad_vs_coad.png",
+        "results/cross/sample_distance_heatmap.png",
+        "results/cross/qc_report.txt",
+        
+        "results/cross/dds.rds",
+        "results/cross/results.csv",
+        "results/cross/normalized_counts.csv",
+
+
+        "results/cross/enrichment_go_luad_coad_gsea.csv",
+        "results/cross/enrichment_kegg_luad_coad_gsea.csv",
+
+        "results/cross/pca_luad_vs_coad.png",
+        "results/cross/pca_luad_vs_coad_cancer_type.csv",
+        "results/cross/volcano.png",
+        "results/cross/heatmap.png",
+        "results/cross/ma_plot.png",
+
+        "results/setup/.bioc_installed",
+        "results/setup/enrichment/.packages_installed"
+
+
+# -----------------------------
+# BIOC SETUP
+# -----------------------------
 rule setup_bioc:
     conda:
         "env/r.yaml"
     output:
-        ".bioc_installed"
+        "results/setup/.bioc_installed"
     script:
         "../scripts/setup_bioc.R"
 
-rule all:
-    input:
-        ".bioc_installed",
-        "data/raw/tcga_counts.rds",
-        "data/metadata/tcga_metadata.rds",
-        "results/qc/qc_deseq2_dds.rds",
-        "results/qc/qc_report.txt",
-        "results/qc/pca_prelim.png",
-        "results/qc/pc1_total_reads.png",
-        "results/qc/pc1_multimapped.png",
-        "results/des/deseq2_results.csv",
-        "results/des/normalized_counts.csv",
-        "results/des/deseq2_dds.rds",
-        "results/enrichment/go_enrichment.png",
-        "results/enrichment/KEGG_enrichment.png",
-        "results/enrichment/go_results.csv",
-        "results/enrichment/kegg_results.csv",
-        "results/figures/pca.png",
-        "results/figures/volcano.png",
-        "results/figures/heatmap.png"
 
+rule setup_enrichment:
+    conda:
+        "env/enrichment.yaml"
+    output:
+        "results/setup/enrichment/.packages_installed"
+    script:
+        "../scripts/setup_enrichment.R"
 
 # -----------------------------
-# 1. Download TCGA data
+# 1. DOWNLOAD (per cancer)
 # -----------------------------
 rule download_tcga:
+    input:
+        bioc="results/setup/.bioc_installed"
     output:
-        "data/raw/tcga_counts.rds",
-        "data/metadata/tcga_metadata.rds",
-        "data/raw/tcga_counts.csv",
-        "data/metadata/tcga_metadata.csv"
+        counts="data/raw/{cancer}_counts.rds",
+        meta="data/metadata/{cancer}_metadata.rds"
     conda:
         "env/r.yaml"
     script:
@@ -62,19 +110,21 @@ rule download_tcga:
 
 
 # -----------------------------
-# 2. QC
+# 2. QC (per cancer)
 # -----------------------------
 rule qc:
     input:
-        counts="data/raw/tcga_counts.rds",
-        meta="data/metadata/tcga_metadata.rds",
-        bioc=".bioc_installed"
+        bioc="results/setup/.bioc_installed",
+        counts="data/raw/{cancer}_counts.rds",
+        meta="data/metadata/{cancer}_metadata.rds"
     output:
-        "results/qc/qc_deseq2_dds.rds",
-        "results/qc/qc_report.txt",
-        "results/qc/pca_prelim.png",
-        "results/qc/pc1_total_reads.png",
-        "results/qc/pc1_multimapped.png"
+        dds="results/qc/{cancer}/dds.rds",
+        pca="results/qc/{cancer}/pca.png",
+        report="results/qc/{cancer}/qc_report.txt",
+        sample_dist="results/qc/{cancer}/sample_distance_heatmap.png",
+        size_factors="results/qc/{cancer}/size_factors.png",
+        pc1_total="results/qc/{cancer}/pc1_total.png",
+        done=touch("results/qc/{cancer}/done.txt")
     conda:
         "env/r.yaml"
     script:
@@ -82,17 +132,17 @@ rule qc:
 
 
 # -----------------------------
-# 3. Differential Expression
+# 3. DESEQ2 (per cancer)
 # -----------------------------
 rule deseq2:
     input:
-        counts="data/raw/tcga_counts.rds",
-        meta="data/metadata/tcga_metadata.rds",
-        bioc=".bioc_installed"
+        bioc="results/setup/.bioc_installed",
+        counts="data/raw/{cancer}_counts.rds",
+        meta="data/metadata/{cancer}_metadata.rds"
     output:
-        results="results/des/deseq2_results.csv",
-        normalized="results/des/normalized_counts.csv",
-        dds="results/des/deseq2_dds.rds"
+        dds="results/des/{cancer}/dds.rds",
+        results="results/des/{cancer}/results.csv",
+        normalized="results/des/{cancer}/normalized_counts.csv"
     conda:
         "env/r.yaml"
     script:
@@ -100,36 +150,124 @@ rule deseq2:
 
 
 # -----------------------------
-# 4. Enrichment analysis
+# 5. ENRICHMENT (per cancer optional extension)
 # -----------------------------
 rule enrichment:
     input:
-        "results/des/deseq2_results.csv",
-        bioc=".bioc_installed"
+        results="results/des/{cancer}/results.csv",
+        packages="results/setup/enrichment/.packages_installed"
     output:
-        "results/enrichment/go_enrichment.png",
-        "results/enrichment/KEGG_enrichment.png",
-        "results/enrichment/go_results.csv",
-        "results/enrichment/kegg_results.csv",
+        "results/des/{cancer}/enrichment_go.csv",
+        "results/des/{cancer}/enrichment_kegg.csv",
+        "results/des/{cancer}/enrichment_go_plot.png",
+        "results/des/{cancer}/enrichment_kegg_plot.png"
     conda:
-        "env/r.yaml"
+        "env/enrichment.yaml"
     script:
         "../scripts/enrichment.R"
 
 
 # -----------------------------
-# 5. Figures
+# 6. FINAL FIGURES (optional per cancer)
 # -----------------------------
-rule plots:
+rule per_cancer_plots:
     input:
-        deg="results/des/deseq2_results.csv",
-        dds="results/des/deseq2_dds.rds",
-        bioc=".bioc_installed"
+        dds="results/des/{cancer}/dds.rds",
+        results="results/des/{cancer}/results.csv"
     output:
-        "results/figures/pca.png",
-        "results/figures/volcano.png",
-        "results/figures/heatmap.png"
+        volcano="results/des/{cancer}/volcano.png",
+        pca="results/des/{cancer}/pca.png",
+        pca_sample_type="results/des/{cancer}/pca_sample_type.csv",
+        heatmap="results/des/{cancer}/heatmap.png",
+        ma_plot="results/des/{cancer}/ma_plot.png"
     conda:
         "env/r.yaml"
     script:
         "../scripts/plots.R"
+
+
+# -----------------------------
+# 7. CROSS-CANCER ANALYSIS
+# -----------------------------
+rule cross_cancer_qc:
+    input:
+        bioc="results/setup/.bioc_installed",
+
+        # Require individual cancer QC first
+        luad_qc="results/qc/LUAD/dds.rds",
+        coad_qc="results/qc/COAD/dds.rds",
+
+        luad_counts="data/raw/LUAD_counts.rds",
+        coad_counts="data/raw/COAD_counts.rds",
+        luad_meta="data/metadata/LUAD_metadata.rds",
+        coad_meta="data/metadata/COAD_metadata.rds"
+    output:
+        "results/cross/qc_pca_luad_vs_coad.png",
+        "results/cross/sample_distance_heatmap.png",
+        "results/cross/qc_report.txt"
+    conda:
+        "env/r.yaml"
+    script:
+        "../scripts/cross_cancer_qc.R"
+
+# -----------------------------
+# 8. CROSS-CANCER DESEQ2
+# -----------------------------
+rule cross_cancer_deseq2:
+    input:
+        bioc="results/setup/.bioc_installed",
+
+        # Wait until individual cancers finish DE
+        luad_de="results/des/LUAD/results.csv",
+        coad_de="results/des/COAD/results.csv",
+
+        luad_counts="data/raw/LUAD_counts.rds",
+        coad_counts="data/raw/COAD_counts.rds",
+        luad_meta="data/metadata/LUAD_metadata.rds",
+        coad_meta="data/metadata/COAD_metadata.rds"
+    output:
+        dds="results/cross/dds.rds",
+        results="results/cross/results.csv",
+        normalized="results/cross/normalized_counts.csv"
+
+    conda:
+        "env/r.yaml"
+
+    script:
+        "../scripts/cross_cancer_deseq2.R"
+
+
+# ------------------------------
+# 9. CROSS-CANCER ENRICHMENT GSEA
+# -----------------------------
+rule cross_cancer_enrichment_gsea:
+    input:
+        results="results/cross/results.csv",
+        packages="results/setup/enrichment/.packages_installed"
+    output:
+        go_csv="results/cross/enrichment_go_luad_coad_gsea.csv",
+        kegg_csv="results/cross/enrichment_kegg_luad_coad_gsea.csv",
+        go_plot="results/cross/enrichment_go_luad_coad_gsea.png",
+        kegg_plot="results/cross/enrichment_kegg_luad_coad_gsea.png"
+    conda:
+        "env/enrichment.yaml"
+    script:
+        "../scripts/cross_cancer_enrichment_gsea.R"
+
+# ------------------------------
+# 10. CROSS-CANCER PLOTS
+# -----------------------------
+rule cross_cancer_plots:
+    input:
+        deg="results/cross/results.csv",
+        dds="results/cross/dds.rds"
+    output:
+        pca="results/cross/pca_luad_vs_coad.png",
+        pca_cancer_type="results/cross/pca_luad_vs_coad_cancer_type.csv",
+        volcano="results/cross/volcano.png",
+        heatmap="results/cross/heatmap.png",
+        ma_plot="results/cross/ma_plot.png"
+    conda:
+        "env/r.yaml"
+    script:
+        "../scripts/cross_cancer_plot.R"

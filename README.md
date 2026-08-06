@@ -14,10 +14,10 @@ The workflow is designed to be reproducible through Snakemake and Conda environm
 
 ## Data
 
-LUAD molecular subtype annotations were obtained from:  
+**LUAD** molecular subtype annotations were obtained from:  
 The Cancer Genome Atlas Research Network. [Comprehensive molecular profiling of lung adenocarcinoma.](doi.org/10.1038/nature13385) _Nature_ **511**, 543–550 (2014).
 
-COAD molecular subtype annotations were obtained from:  
+**COAD** molecular subtype annotations were obtained from:  
 The Cancer Genome Atlas Network. [Comprehensive molecular characterization of human colon and rectal cancer.](doi.org/10.1038/nature11252) _Nature_ **487**, 330–337 (2012).
 
 ---

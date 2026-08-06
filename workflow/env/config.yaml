@@ -2,6 +2,10 @@ projects:
   - TCGA-LUAD
   - TCGA-COAD
 
+cancers:
+  - LUAD
+  - COAD
+
 design: "~ cancer_type"
 
 filters:

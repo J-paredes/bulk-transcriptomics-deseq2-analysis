@@ -6,27 +6,29 @@ library(dplyr)
 library(ComplexHeatmap)
 library(ggrepel)
 
-pca_plot <- snakemake@output[[1]]
-volcano_plot <- snakemake@output[[2]]
-heatmap_plot <- snakemake@output[[3]]
+volcano_plot <- snakemake@output[["volcano"]]
+pca_plot <- snakemake@output[["pca"]]
+heatmap_plot <- snakemake@output[["heatmap"]]
+ma_plot <- snakemake@output[["ma_plot"]]
 
-res <- readr::read_csv(snakemake@input[["deg"]], show_col_types = FALSE)
+
+res <- readr::read_csv(snakemake@input[["results"]], show_col_types = FALSE)
 dds <- readRDS(snakemake@input[["dds"]])
 
 # PCA plot ----------------------
 vsd <- vst(dds)
-pcaData_cancer_type <- as.data.frame(
-  plotPCA(vsd, intgroup = c("cancer_type"), returnData = TRUE)
+pcaData_sample_type <- as.data.frame(
+  plotPCA(vsd, intgroup = c("sample_type"), returnData = TRUE)
 )
-write_csv(pcaData_cancer_type, file = "results/pcaData_cancer_type.csv")
+write_csv(pcaData_sample_type, file = "results//pcaData_sample_type.csv")
 
-ggplot(pcaData_cancer_type, aes(PC1, PC2, color=cancer_type)) +
-  geom_point(aes(shape=cancer_type), size=10, alpha=0.7) +
-  labs(title="PCA by Cancer Type", x="PC1 (%)", y="PC2 (%)") +
-  stat_ellipse(level=0.95, linetype="dashed", aes(fill=cancer_type), alpha=0.8) +
+ggplot(pcaData_sample_type, aes(PC1, PC2, color=sample_type)) +
+  geom_point(aes(shape=sample_type), size=10, alpha=0.7) +
+  labs(title="PCA by Sample Type", x="PC1 (%)", y="PC2 (%)") +
+  stat_ellipse(level=0.95, linetype="dashed", alpha=0.8) +
   theme_classic(base_size=16) +
   # scale_color_manual(values=c("Female" = "pink", "Male" = "blue")) +
-  scale_shape_manual(values=c(16, 17)) +
+  # scale_shape_manual(values=c(16, 17)) +
   theme(legend.title=element_blank(),
         axis.title=element_text(face="bold"))
         
@@ -57,7 +59,7 @@ res_df$significance_label <- factor(res_df$significance_label, levels=c(
 
 volcano <- ggplot(res_df, aes(log2FoldChange, -log10(pvalue), color=significance_label)) +
   geom_point(alpha=0.3, size=5) + 
-  labs(x=expression(bold(log2(FC))), y=expression(bold(log10(q))),
+  labs(x=expression(bold(log2(FC))), y=expression(bold(-log10(q))),
   color="Significance") +
   scale_color_manual(values=c("Significant at q < 0.01 and |Threshold| > 2" = "goldenrod",
                       "Moderately Significant at q < 0.05" = "yellow",
@@ -84,7 +86,7 @@ top_genes <- res |>
 top_genes <- intersect(top_genes, rownames(assay(vsd)))
 mat <- assay(vsd)[top_genes, , drop = FALSE]
 
-anno <- as.data.frame(colData(vsd))[, "cancer_type", drop = FALSE]
+anno <- as.data.frame(colData(vsd))[, "sample_type", drop = FALSE]
 anno <- anno[colnames(mat), , drop = FALSE]
 
 library(ComplexHeatmap)
@@ -134,11 +136,11 @@ sig_for_labels <- sig_for_labels[order(sig_for_labels$padj), ]
 label_genes <- head(sig_for_labels$gene, ma_label_top_n)
 resLFC_df$label <- ifelse(resLFC_df$gene %in% label_genes, resLFC_df$gene, "")
 
-ma_plot <- ggplot(resLFC_df, aes(x = log10(baseMean), y = log2FoldChange, color = significance)) +
+ma <- ggplot(resLFC_df, aes(x = log10(baseMean), y = log2FoldChange, color = significance)) +
   geom_hline(yintercept = c(-ma_lfc_cutoff, ma_lfc_cutoff), linetype = "dashed", color = "grey40") +
   geom_point(size = ma_point_size, alpha = ma_alpha) +
   geom_text_repel(aes(label = label), color = "black", size = 3, max.overlaps = Inf) +
-  scale_color_manual(values = c("Not significant" = "grey70", "Significant" = "red")) +
+  # scale_color_manual(values = c("Not significant" = "grey70", "Significant" = "red")) +
   theme_classic(base_size = 16) +
   labs(
     title = "MA Plot",
@@ -152,5 +154,4 @@ ma_plot <- ggplot(resLFC_df, aes(x = log10(baseMean), y = log2FoldChange, color 
     axis.title = element_text(face = "bold")
   )
 
-ma_plot_path <- file.path(dirname(volcano_plot), "MA_plot.png")
-ggsave(ma_plot_path, ma_plot, width = 8, height = 6, dpi = 300)
+ggsave(snakemake@output[["ma_plot"]], ma, width = 8, height = 6, dpi = 300)

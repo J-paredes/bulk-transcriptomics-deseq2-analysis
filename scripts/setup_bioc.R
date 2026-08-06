@@ -1,65 +1,80 @@
 options(repos = c(CRAN = "https://cloud.r-project.org"))
 
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
-  install.packages(
-    "BiocManager",
-    repos = "https://cloud.r-project.org"
-  )
+    install.packages("BiocManager")
 }
 
-# Bioconductor packages
-BiocManager::install(
-  c(
+print(R.version.string)
+library(BiocManager)
+
+pkgs <- c(
     "TCGAbiolinks",
     "DESeq2",
     "SummarizedExperiment",
     "Biobase",
-    "clusterProfiler",
-    "org.Hs.eg.db",
+        "vsn",
+    # "clusterProfiler",
+    # "org.Hs.eg.db",
     "apeglm",
     "ComplexHeatmap"
-  ),
-  ask = FALSE,
-  update = FALSE
 )
 
-# CRAN packages
-install.packages(
-  c(
-    "ggplot2",
-    "readr",
-    "dplyr",
-    "ggrepel"
-  ),
-  repos = "https://cloud.r-project.org"
-)
+for (pkg in pkgs) {
 
-# Verify critical packages
-required_pkgs <- c(
-  "TCGAbiolinks",
-  "DESeq2",
-  "SummarizedExperiment",
-  "clusterProfiler",
-  "org.Hs.eg.db",
-  "apeglm",
-  "ComplexHeatmap",
-  "ggplot2",
-  "readr",
-  "dplyr",
-  "ggrepel"
-)
+    if (!requireNamespace(pkg, quietly = TRUE)) {
 
-missing <- required_pkgs[
-  !sapply(required_pkgs, requireNamespace, quietly = TRUE)
+        message("Installing ", pkg)
+
+        BiocManager::install(
+            pkg,
+            ask = FALSE,
+            update = FALSE,
+            force = TRUE
+        )
+    }
+}
+
+
+missing <- pkgs[
+    !sapply(pkgs, requireNamespace, quietly = TRUE)
 ]
 
 if (length(missing) > 0) {
-  stop(
-    paste(
-      "Failed to install:",
-      paste(missing, collapse = ", ")
+    stop(
+        "Missing packages: ",
+        paste(missing, collapse = ", ")
     )
-  )
 }
 
-file.create(".bioc_installed")
+
+cat("LIBPATHS\n")
+print(.libPaths())
+
+cat("R HOME\n")
+print(R.home())
+
+cat("DESeq2\n")
+print(find.package("DESeq2"))
+
+message(.libPaths())
+installed.packages()[, "Package"]
+print(.libPaths())
+
+print(find.package("DESeq2"))
+
+print(requireNamespace("TCGAbiolinks", quietly = TRUE))
+
+dir.create("results/setup", recursive = TRUE, showWarnings = FALSE)
+write.csv(installed.packages(),
+          "results/setup/installed_packages.csv")
+
+writeLines(
+    capture.output(sessionInfo()),
+    "results/setup/sessionInfo.txt"
+)
+
+stopifnot(requireNamespace("DESeq2", quietly = TRUE))
+stopifnot(requireNamespace("TCGAbiolinks", quietly = TRUE))
+stopifnot(requireNamespace("ComplexHeatmap", quietly = TRUE))
+
+file.create("results/setup/.bioc_installed")
