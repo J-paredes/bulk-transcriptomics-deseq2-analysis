@@ -8,6 +8,7 @@ library(ggrepel)
 
 volcano_plot <- snakemake@output[["volcano"]]
 pca_plot <- snakemake@output[["pca"]]
+pca_sample_type <- snakemake@output[["pca_sample_type"]]
 heatmap_plot <- snakemake@output[["heatmap"]]
 ma_plot <- snakemake@output[["ma_plot"]]
 
@@ -20,7 +21,7 @@ vsd <- vst(dds)
 pcaData_sample_type <- as.data.frame(
   plotPCA(vsd, intgroup = c("sample_type"), returnData = TRUE)
 )
-write_csv(pcaData_sample_type, file = "results//pcaData_sample_type.csv")
+write_csv(pcaData_sample_type, file = pca_sample_type)
 
 ggplot(pcaData_sample_type, aes(PC1, PC2, color=sample_type)) +
   geom_point(aes(shape=sample_type), size=10, alpha=0.7) +
